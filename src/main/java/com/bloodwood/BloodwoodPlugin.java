@@ -29,8 +29,7 @@ import net.runelite.client.ui.overlay.OverlayManager;
 @PluginDescriptor(
 	name = "Visual Bloodwood",
 	description = "Displays passive state and session information for bloodwood trees",
-	tags = {"bloodwood", "sap", "skilling", "woodcutting"},
-	enabledByDefault = false
+	tags = {"bloodwood", "sap", "skilling", "woodcutting"}
 )
 public class BloodwoodPlugin extends Plugin
 {
