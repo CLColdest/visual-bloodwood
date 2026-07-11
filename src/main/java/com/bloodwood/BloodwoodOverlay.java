@@ -26,7 +26,7 @@ class BloodwoodOverlay extends OverlayPanel
 	@Override
 	public Dimension render(Graphics2D graphics)
 	{
-		if (!config.showSessionStats() || !plugin.isInBloodwoodArea())
+		if (!config.showSessionStats() || !plugin.isBloodwoodActive())
 		{
 			return null;
 		}

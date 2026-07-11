@@ -30,7 +30,7 @@ class BloodwoodSceneOverlay extends Overlay
 	@Override
 	public Dimension render(Graphics2D graphics)
 	{
-		if (!config.showTreeState())
+		if (!config.showTreeState() || !plugin.isBloodwoodActive())
 		{
 			return null;
 		}

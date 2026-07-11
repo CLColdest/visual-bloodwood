@@ -59,7 +59,6 @@ public class BloodwoodPlugin extends Plugin
 		VarbitID.BLOODWOOD_TREE_BUCKET_PLACED5,
 		VarbitID.BLOODWOOD_TREE_BUCKET_PLACED6
 	};
-
 	@Inject
 	private Client client;
 
@@ -94,9 +93,12 @@ public class BloodwoodPlugin extends Plugin
 	private boolean inventorySeen;
 	private final int[] lastBleedingProgress = new int[BLEEDING_PROGRESS_VARBITS.length];
 	private final int[] lastChoppingProgress = new int[CHOPPING_PROGRESS_VARBITS.length];
+	private final int[] lastBucketPlaced = new int[BUCKET_PLACED_VARBITS.length];
 	private final int[] currentChops = new int[CHOPPING_PROGRESS_VARBITS.length];
 	private final boolean[] bleedingDraining = new boolean[BLEEDING_PROGRESS_VARBITS.length];
 	private int lastObservedChops;
+	private boolean bloodwoodActive;
+	private boolean treeStateSeen;
 
 	@Override
 	protected void startUp()
@@ -119,9 +121,12 @@ public class BloodwoodPlugin extends Plugin
 		inventorySeen = false;
 		Arrays.fill(lastBleedingProgress, 0);
 		Arrays.fill(lastChoppingProgress, 0);
+		Arrays.fill(lastBucketPlaced, 0);
 		Arrays.fill(currentChops, 0);
 		Arrays.fill(bleedingDraining, false);
 		lastObservedChops = 0;
+		bloodwoodActive = false;
+		treeStateSeen = false;
 	}
 
 	@Subscribe
@@ -131,6 +136,7 @@ public class BloodwoodPlugin extends Plugin
 		{
 			bloodwoodTrees.clear();
 			bloodwoodSpots.clear();
+			bloodwoodActive = false;
 		}
 	}
 
@@ -141,10 +147,20 @@ public class BloodwoodPlugin extends Plugin
 		{
 			int choppingProgress = client.getVarbitValue(CHOPPING_PROGRESS_VARBITS[i]);
 			int bleedingProgress = client.getVarbitValue(BLEEDING_PROGRESS_VARBITS[i]);
+			int bucketPlaced = client.getVarbitValue(BUCKET_PLACED_VARBITS[i]);
+
+			if (!treeStateSeen)
+			{
+				lastChoppingProgress[i] = choppingProgress;
+				lastBleedingProgress[i] = bleedingProgress;
+				lastBucketPlaced[i] = bucketPlaced;
+				continue;
+			}
 
 			if (choppingProgress > lastChoppingProgress[i])
 			{
 				++currentChops[i];
+				markBloodwoodActivity();
 			}
 
 			if (bleedingProgress > 0 && currentChops[i] > 0)
@@ -153,10 +169,18 @@ public class BloodwoodPlugin extends Plugin
 				currentChops[i] = 0;
 			}
 
+			if (bleedingProgress != lastBleedingProgress[i] || bucketPlaced != lastBucketPlaced[i])
+			{
+				markBloodwoodActivity();
+			}
+
 			bleedingDraining[i] = bleedingProgress > 0 && bleedingProgress < lastBleedingProgress[i];
 			lastChoppingProgress[i] = choppingProgress;
 			lastBleedingProgress[i] = bleedingProgress;
+			lastBucketPlaced[i] = bucketPlaced;
 		}
+
+		treeStateSeen = true;
 	}
 
 	@Subscribe
@@ -185,6 +209,11 @@ public class BloodwoodPlugin extends Plugin
 		{
 			bloodwoodSpots.remove(gameObject);
 		}
+
+		if (!isInBloodwoodArea())
+		{
+			bloodwoodActive = false;
+		}
 	}
 
 	@Subscribe
@@ -212,6 +241,8 @@ public class BloodwoodPlugin extends Plugin
 			return;
 		}
 
+		markBloodwoodActivity();
+
 		if (session == null)
 		{
 			session = new BloodwoodSession();
@@ -223,6 +254,16 @@ public class BloodwoodPlugin extends Plugin
 	boolean isInBloodwoodArea()
 	{
 		return !bloodwoodTrees.isEmpty() || !bloodwoodSpots.isEmpty();
+	}
+
+	boolean isBloodwoodActive()
+	{
+		return isInBloodwoodArea() && bloodwoodActive;
+	}
+
+	private void markBloodwoodActivity()
+	{
+		bloodwoodActive = true;
 	}
 
 	@Nullable
