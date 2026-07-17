@@ -1,5 +1,7 @@
 package com.bloodwood;
 
+import com.bloodwood.engorged.EngorgedBloodwoodPhase;
+import com.bloodwood.engorged.EngorgedBloodwoodState;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
@@ -30,16 +32,30 @@ class BloodwoodSceneOverlay extends Overlay
 	@Override
 	public Dimension render(Graphics2D graphics)
 	{
-		if (!config.showTreeState() || !plugin.isBloodwoodActive())
+		if (!plugin.shouldRenderTreeState() ||
+			!config.showTreeState() && !config.showTreeSpots() && !config.showEngorgedTreeState())
 		{
 			return null;
 		}
 
-		for (GameObject tree : plugin.getBloodwoodTrees())
+		if (config.showTreeState())
 		{
-			BloodwoodTreeState state = plugin.getState(tree);
-			renderClickbox(graphics, tree, getTreeColor(state));
-			renderState(graphics, tree, state);
+			for (GameObject tree : plugin.getBloodwoodTrees())
+			{
+				BloodwoodTreeState state = plugin.getState(tree);
+				renderClickbox(graphics, tree, getTreeColor(state));
+				renderState(graphics, tree, state);
+			}
+		}
+
+		if (config.showEngorgedTreeState())
+		{
+			for (GameObject tree : plugin.getEngorgedBloodwoodTrees())
+			{
+				EngorgedBloodwoodState state = plugin.getEngorgedState();
+				renderClickbox(graphics, tree, getEngorgedTreeColor(state));
+				renderEngorgedState(graphics, tree, state);
+			}
 		}
 
 		if (config.showTreeSpots())
@@ -102,6 +118,31 @@ class BloodwoodSceneOverlay extends Overlay
 		return config.bucketColor();
 	}
 
+	private Color getEngorgedTreeColor(EngorgedBloodwoodState state)
+	{
+		if (state.getPhase() == EngorgedBloodwoodPhase.NO_BUCKET)
+		{
+			return config.noBucketColor();
+		}
+
+		if (state.getPhase() == EngorgedBloodwoodPhase.DRAINING)
+		{
+			return config.engorgedDrainingColor();
+		}
+
+		if (state.getPhase() == EngorgedBloodwoodPhase.READY_TO_DRAIN)
+		{
+			return config.engorgedClickColor();
+		}
+
+		if (state.getPhase() == EngorgedBloodwoodPhase.BLEEDING)
+		{
+			return config.engorgedChoppingColor();
+		}
+
+		return config.engorgedReadyColor();
+	}
+
 	private void renderState(Graphics2D graphics, GameObject tree, BloodwoodTreeState state)
 	{
 		if (state == null)
@@ -140,5 +181,40 @@ class BloodwoodSceneOverlay extends Overlay
 		{
 			OverlayUtil.renderTextLocation(graphics, textLocation, text, Color.WHITE);
 		}
+	}
+
+	private void renderEngorgedState(Graphics2D graphics, GameObject tree, EngorgedBloodwoodState state)
+	{
+		String text = getEngorgedText(state);
+
+		Point textLocation = tree.getCanvasTextLocation(graphics, text, 0);
+		if (textLocation != null)
+		{
+			OverlayUtil.renderTextLocation(graphics, textLocation, text, Color.WHITE);
+		}
+	}
+
+	private static String getEngorgedText(EngorgedBloodwoodState state)
+	{
+		switch (state.getPhase())
+		{
+			case NO_BUCKET:
+				return "No bucket";
+			case BLEEDING:
+				return "Chopping";
+			case READY_TO_DRAIN:
+				return "Click";
+			case DRAINING:
+				return "Drain " + getSecondsRemaining(state.getDrainingTicksRemaining()) + "s";
+			case READY:
+				return "Ready";
+			default:
+				return "Unknown";
+		}
+	}
+
+	private static int getSecondsRemaining(int ticks)
+	{
+		return (ticks * 3 + 4) / 5;
 	}
 }

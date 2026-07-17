@@ -1,22 +1,50 @@
 # Visual Bloodwood
 
-Visual Bloodwood is a passive RuneLite helper for Bloodwood trees.
+Visual Bloodwood is a small RuneLite helper for Bloodwood trees and the engorged
+Bloodwood tree.
 
-It shows the current state of nearby Bloodwood trees while you are actively
-working with them, including:
+## Bloodwood Trees
 
-- whether a bucket is missing, placed, or ready to collect
+For regular Bloodwood trees, the plugin keeps track of the tree state while you
+are working in the area:
+
+- no bucket
+- bucket placed
 - chopping progress while opening a wound
 - bleeding progress while sap is draining
+- ready to collect
 - nearby Bloodwood interaction spots
-- empty buckets, sap buckets, and sap collected this session
 
-The overlay stays hidden when you are only passing through the area. It turns on
-after Bloodwood activity is detected and stays visible while you remain at the
-trees, even if you go idle for a while. Leaving the area hides it again.
+The overlay stays hidden while you are just passing through, then shows up once
+Bloodwood activity starts.
 
-This plugin does not automate input, modify menus, change clicks, or provide
-tick-cycle click guidance.
+## Engorged Bloodwood Tree
+
+The engorged Bloodwood tree works differently from the regular ones, so it has
+its own states.
+
+The overlay shows when it is:
+
+- ready
+- missing empty bucket
+- chopping
+- waiting for the second click
+- draining, with a 45 second countdown
+
+There are optional notifications for the two easy-to-miss moments: when the first
+phase is done, and when draining finishes. They use RuneLite's normal
+notification settings, so you can handle sounds, flashing, focus behavior, and
+everything else there.
+
+## Session Stats
+
+The side panel can show empty buckets, sap buckets, sap collected this session,
+and sap per hour.
+
+## Fair Play
+
+Visual Bloodwood is only a visual helper. It does not automate input, change menu
+options, modify clicks, or provide tick-cycle click guidance.
 
 ## Supporting
 

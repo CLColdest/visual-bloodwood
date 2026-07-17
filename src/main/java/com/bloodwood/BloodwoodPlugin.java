@@ -1,5 +1,8 @@
 package com.bloodwood;
 
+import com.bloodwood.engorged.EngorgedBloodwoodIds;
+import com.bloodwood.engorged.EngorgedBloodwoodPhase;
+import com.bloodwood.engorged.EngorgedBloodwoodState;
 import com.google.inject.Provides;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -20,6 +23,7 @@ import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.gameval.InventoryID;
 import net.runelite.api.gameval.ItemID;
 import net.runelite.api.gameval.VarbitID;
+import net.runelite.client.Notifier;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
@@ -35,6 +39,9 @@ public class BloodwoodPlugin extends Plugin
 {
 	private static final Set<Integer> BLOODWOOD_TREES = Set.of(33393, 33394, 33395, 33396, 33397, 33398);
 	private static final Set<Integer> BLOODWOOD_SPOTS = Set.of(33399, 33400, 33401, 33402, 33403, 33404);
+	private static final int ENGORGED_FULL_PROGRESS = 3800;
+	private static final int ENGORGED_DRAINING_TICKS = 75;
+	private static final int ENGORGED_PROGRESS_GRACE_TICKS = 4;
 	private static final int[] CHOPPING_PROGRESS_VARBITS = {
 		VarbitID.BLOODWOOD_TREE_CHOPPING_PROGRESS1,
 		VarbitID.BLOODWOOD_TREE_CHOPPING_PROGRESS2,
@@ -63,6 +70,12 @@ public class BloodwoodPlugin extends Plugin
 	private Client client;
 
 	@Inject
+	private BloodwoodConfig config;
+
+	@Inject
+	private Notifier notifier;
+
+	@Inject
 	private OverlayManager overlayManager;
 
 	@Inject
@@ -76,6 +89,9 @@ public class BloodwoodPlugin extends Plugin
 
 	@Getter(AccessLevel.PACKAGE)
 	private final Set<GameObject> bloodwoodSpots = new HashSet<>();
+
+	@Getter(AccessLevel.PACKAGE)
+	private final Set<GameObject> engorgedBloodwoodTrees = new HashSet<>();
 
 	@Getter(AccessLevel.PACKAGE)
 	@Nullable
@@ -97,8 +113,16 @@ public class BloodwoodPlugin extends Plugin
 	private final int[] currentChops = new int[CHOPPING_PROGRESS_VARBITS.length];
 	private final boolean[] bleedingDraining = new boolean[BLEEDING_PROGRESS_VARBITS.length];
 	private int lastObservedChops;
+	private int lastEngorgedProgress;
+	private int lastEngorgedProgressDelta;
+	private int engorgedTicksSinceProgressChange = ENGORGED_PROGRESS_GRACE_TICKS + 1;
+	private int engorgedDrainingTicksRemaining;
 	private boolean bloodwoodActive;
 	private boolean treeStateSeen;
+	private boolean engorgedStateSeen;
+	@Nullable
+	private EngorgedBloodwoodPhase lastEngorgedPhase;
+	private boolean engorgedPhaseSeen;
 
 	@Override
 	protected void startUp()
@@ -114,6 +138,7 @@ public class BloodwoodPlugin extends Plugin
 		overlayManager.remove(sceneOverlay);
 		bloodwoodTrees.clear();
 		bloodwoodSpots.clear();
+		engorgedBloodwoodTrees.clear();
 		session = null;
 		emptyBuckets = 0;
 		sapBuckets = 0;
@@ -125,8 +150,15 @@ public class BloodwoodPlugin extends Plugin
 		Arrays.fill(currentChops, 0);
 		Arrays.fill(bleedingDraining, false);
 		lastObservedChops = 0;
+		lastEngorgedProgress = 0;
+		lastEngorgedProgressDelta = 0;
+		engorgedTicksSinceProgressChange = ENGORGED_PROGRESS_GRACE_TICKS + 1;
+		engorgedDrainingTicksRemaining = 0;
 		bloodwoodActive = false;
 		treeStateSeen = false;
+		engorgedStateSeen = false;
+		lastEngorgedPhase = null;
+		engorgedPhaseSeen = false;
 	}
 
 	@Subscribe
@@ -136,7 +168,11 @@ public class BloodwoodPlugin extends Plugin
 		{
 			bloodwoodTrees.clear();
 			bloodwoodSpots.clear();
+			engorgedBloodwoodTrees.clear();
 			bloodwoodActive = false;
+			engorgedDrainingTicksRemaining = 0;
+			lastEngorgedPhase = null;
+			engorgedPhaseSeen = false;
 		}
 	}
 
@@ -181,6 +217,30 @@ public class BloodwoodPlugin extends Plugin
 		}
 
 		treeStateSeen = true;
+
+		int engorgedProgress = client.getVarbitValue(EngorgedBloodwoodIds.PROGRESS_VARBIT);
+		if (!engorgedStateSeen)
+		{
+			lastEngorgedProgress = engorgedProgress;
+			lastEngorgedProgressDelta = 0;
+			engorgedTicksSinceProgressChange = ENGORGED_PROGRESS_GRACE_TICKS + 1;
+			engorgedStateSeen = true;
+			return;
+		}
+
+		if (engorgedProgress != lastEngorgedProgress)
+		{
+			lastEngorgedProgressDelta = engorgedProgress - lastEngorgedProgress;
+			engorgedTicksSinceProgressChange = 0;
+			markBloodwoodActivity();
+		}
+		else
+		{
+			++engorgedTicksSinceProgressChange;
+		}
+
+		lastEngorgedProgress = engorgedProgress;
+		updateEngorgedStateTracking();
 	}
 
 	@Subscribe
@@ -195,6 +255,10 @@ public class BloodwoodPlugin extends Plugin
 		{
 			bloodwoodSpots.add(gameObject);
 		}
+		else if (gameObject.getId() == EngorgedBloodwoodIds.TREE)
+		{
+			engorgedBloodwoodTrees.add(gameObject);
+		}
 	}
 
 	@Subscribe
@@ -208,6 +272,13 @@ public class BloodwoodPlugin extends Plugin
 		else if (BLOODWOOD_SPOTS.contains(gameObject.getId()))
 		{
 			bloodwoodSpots.remove(gameObject);
+		}
+		else if (gameObject.getId() == EngorgedBloodwoodIds.TREE)
+		{
+			engorgedBloodwoodTrees.remove(gameObject);
+			engorgedDrainingTicksRemaining = 0;
+			lastEngorgedPhase = null;
+			engorgedPhaseSeen = false;
 		}
 
 		if (!isInBloodwoodArea())
@@ -229,7 +300,6 @@ public class BloodwoodPlugin extends Plugin
 		emptyBuckets = inventory.count(ItemID.BUCKET_EMPTY);
 		sapBuckets = inventory.count(ItemID.BUCKET_OF_BLOODWOOD_SAP);
 		inventoryFull = inventory.count() >= inventory.size();
-
 		if (!inventorySeen)
 		{
 			inventorySeen = true;
@@ -253,7 +323,7 @@ public class BloodwoodPlugin extends Plugin
 
 	boolean isInBloodwoodArea()
 	{
-		return !bloodwoodTrees.isEmpty() || !bloodwoodSpots.isEmpty();
+		return !bloodwoodTrees.isEmpty() || !bloodwoodSpots.isEmpty() || !engorgedBloodwoodTrees.isEmpty();
 	}
 
 	boolean isBloodwoodActive()
@@ -261,9 +331,60 @@ public class BloodwoodPlugin extends Plugin
 		return isInBloodwoodArea() && bloodwoodActive;
 	}
 
+	boolean shouldRenderTreeState()
+	{
+		return isBloodwoodActive() || !engorgedBloodwoodTrees.isEmpty();
+	}
+
 	private void markBloodwoodActivity()
 	{
 		bloodwoodActive = true;
+	}
+
+	private void updateEngorgedStateTracking()
+	{
+		if (engorgedBloodwoodTrees.isEmpty())
+		{
+			lastEngorgedPhase = null;
+			engorgedPhaseSeen = false;
+			engorgedDrainingTicksRemaining = 0;
+			return;
+		}
+
+		EngorgedBloodwoodPhase phase = getEngorgedState().getPhase();
+		if (phase == EngorgedBloodwoodPhase.DRAINING)
+		{
+			engorgedDrainingTicksRemaining = lastEngorgedPhase == EngorgedBloodwoodPhase.DRAINING
+				? Math.max(0, engorgedDrainingTicksRemaining - 1)
+				: ENGORGED_DRAINING_TICKS;
+		}
+		else
+		{
+			engorgedDrainingTicksRemaining = 0;
+		}
+
+		if (!engorgedPhaseSeen)
+		{
+			lastEngorgedPhase = phase;
+			engorgedPhaseSeen = true;
+			return;
+		}
+
+		if (phase == lastEngorgedPhase)
+		{
+			return;
+		}
+
+		if (phase == EngorgedBloodwoodPhase.READY_TO_DRAIN)
+		{
+			notifier.notify(config.engorgedClickNotification(), "Engorged Bloodwood tree needs another click.");
+		}
+		else if (phase == EngorgedBloodwoodPhase.READY && lastEngorgedPhase == EngorgedBloodwoodPhase.DRAINING)
+		{
+			notifier.notify(config.engorgedDrainingCompleteNotification(), "Engorged Bloodwood tree is ready to chop again.");
+		}
+
+		lastEngorgedPhase = phase;
 	}
 
 	@Nullable
@@ -309,6 +430,60 @@ public class BloodwoodPlugin extends Plugin
 	{
 		int index = state.getIndex() - 1;
 		return index >= 0 && index < bleedingDraining.length && bleedingDraining[index];
+	}
+
+	EngorgedBloodwoodState getEngorgedState()
+	{
+		int progress = client.getVarbitValue(EngorgedBloodwoodIds.PROGRESS_VARBIT);
+		int draining = client.getVarbitValue(EngorgedBloodwoodIds.DRAINING_VARBIT);
+		boolean hasEmptyBucket = emptyBuckets > 0;
+		boolean playerAnimating = client.getLocalPlayer() != null && client.getLocalPlayer().getAnimation() != -1;
+
+		return new EngorgedBloodwoodState(
+			getEngorgedPhase(progress, draining, hasEmptyBucket, playerAnimating, engorgedTicksSinceProgressChange),
+			progress,
+			draining,
+			hasEmptyBucket,
+			playerAnimating,
+			engorgedTicksSinceProgressChange,
+			engorgedDrainingTicksRemaining
+		);
+	}
+
+	private EngorgedBloodwoodPhase getEngorgedPhase(
+		int progress,
+		int draining,
+		boolean hasEmptyBucket,
+		boolean playerAnimating,
+		int ticksSinceProgressChange
+	)
+	{
+		if (draining > 0 && progress < ENGORGED_FULL_PROGRESS)
+		{
+			return EngorgedBloodwoodPhase.DRAINING;
+		}
+
+		if (!hasEmptyBucket)
+		{
+			return EngorgedBloodwoodPhase.NO_BUCKET;
+		}
+
+		if (progress == 0 && draining == 0)
+		{
+			return EngorgedBloodwoodPhase.READY;
+		}
+
+		if (draining > 0 && progress >= ENGORGED_FULL_PROGRESS)
+		{
+			return EngorgedBloodwoodPhase.READY_TO_DRAIN;
+		}
+
+		if (playerAnimating || lastEngorgedProgressDelta > 0 && ticksSinceProgressChange <= ENGORGED_PROGRESS_GRACE_TICKS)
+		{
+			return EngorgedBloodwoodPhase.BLEEDING;
+		}
+
+		return EngorgedBloodwoodPhase.READY;
 	}
 
 	@Provides
