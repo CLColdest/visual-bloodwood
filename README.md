@@ -17,3 +17,9 @@ trees, even if you go idle for a while. Leaving the area hides it again.
 
 This plugin does not automate input, modify menus, change clicks, or provide
 tick-cycle click guidance.
+
+## Supporting
+
+If this plugin has been useful to you, you can support my continued work on RuneLite plugins through [Patreon](https://www.patreon.com/Dazakio).
+
+No pressure either way. Using the plugin, sharing feedback, or reporting issues already helps a lot.
