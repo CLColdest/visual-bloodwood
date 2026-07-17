@@ -63,15 +63,6 @@ class BloodwoodOverlay extends OverlayPanel
 			.right(Integer.toString(plugin.getSapBuckets()))
 			.build());
 
-		if (plugin.isInventoryFull())
-		{
-			panelComponent.getChildren().add(LineComponent.builder()
-				.left("Inventory:")
-				.right("Full")
-				.rightColor(Color.ORANGE)
-				.build());
-		}
-
 		return super.render(graphics);
 	}
 }
