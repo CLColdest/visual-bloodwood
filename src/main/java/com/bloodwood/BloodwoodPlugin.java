@@ -354,9 +354,14 @@ public class BloodwoodPlugin extends Plugin
 		EngorgedBloodwoodPhase phase = getEngorgedState().getPhase();
 		if (phase == EngorgedBloodwoodPhase.DRAINING)
 		{
-			engorgedDrainingTicksRemaining = lastEngorgedPhase == EngorgedBloodwoodPhase.DRAINING
-				? Math.max(0, engorgedDrainingTicksRemaining - 1)
-				: ENGORGED_DRAINING_TICKS;
+			if (lastEngorgedPhase != EngorgedBloodwoodPhase.DRAINING)
+			{
+				engorgedDrainingTicksRemaining = ENGORGED_DRAINING_TICKS;
+			}
+			else if (isPlayerActivelyDrainingEngorged())
+			{
+				engorgedDrainingTicksRemaining = Math.max(0, engorgedDrainingTicksRemaining - 1);
+			}
 		}
 		else
 		{
@@ -385,6 +390,13 @@ public class BloodwoodPlugin extends Plugin
 		}
 
 		lastEngorgedPhase = phase;
+	}
+
+	private boolean isPlayerActivelyDrainingEngorged()
+	{
+		return client.getLocalPlayer() != null &&
+			client.getLocalPlayer().getAnimation() != -1 &&
+			client.getLocalDestinationLocation() == null;
 	}
 
 	@Nullable
