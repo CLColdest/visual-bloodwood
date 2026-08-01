@@ -84,6 +84,9 @@ public class BloodwoodPlugin extends Plugin
 	@Inject
 	private BloodwoodSceneOverlay sceneOverlay;
 
+	@Inject
+	private BloodwoodInventoryOverlay inventoryOverlay;
+
 	@Getter(AccessLevel.PACKAGE)
 	private final Set<GameObject> bloodwoodTrees = new HashSet<>();
 
@@ -102,6 +105,9 @@ public class BloodwoodPlugin extends Plugin
 
 	@Getter(AccessLevel.PACKAGE)
 	private int sapBuckets;
+
+	@Getter(AccessLevel.PACKAGE)
+	private int letvekInBucket;
 
 	@Getter(AccessLevel.PACKAGE)
 	private boolean inventoryFull;
@@ -129,6 +135,7 @@ public class BloodwoodPlugin extends Plugin
 	{
 		overlayManager.add(overlay);
 		overlayManager.add(sceneOverlay);
+		overlayManager.add(inventoryOverlay);
 	}
 
 	@Override
@@ -136,12 +143,14 @@ public class BloodwoodPlugin extends Plugin
 	{
 		overlayManager.remove(overlay);
 		overlayManager.remove(sceneOverlay);
+		overlayManager.remove(inventoryOverlay);
 		bloodwoodTrees.clear();
 		bloodwoodSpots.clear();
 		engorgedBloodwoodTrees.clear();
 		session = null;
 		emptyBuckets = 0;
 		sapBuckets = 0;
+		letvekInBucket = 0;
 		inventoryFull = false;
 		inventorySeen = false;
 		Arrays.fill(lastBleedingProgress, 0);
@@ -297,13 +306,20 @@ public class BloodwoodPlugin extends Plugin
 
 		ItemContainer inventory = event.getItemContainer();
 		int previousSapBuckets = sapBuckets;
+		int previousLetvekInBucket = letvekInBucket;
 		emptyBuckets = inventory.count(ItemID.BUCKET_EMPTY);
 		sapBuckets = inventory.count(ItemID.BUCKET_OF_BLOODWOOD_SAP);
+		letvekInBucket = inventory.count(EngorgedBloodwoodIds.LETVEK_IN_A_BUCKET);
 		inventoryFull = inventory.count() >= inventory.size();
 		if (!inventorySeen)
 		{
 			inventorySeen = true;
 			return;
+		}
+
+		if (letvekInBucket > previousLetvekInBucket)
+		{
+			notifier.notify(config.letvekNotification(), "A letvek is in one of your buckets. Click it in your inventory to shoo it away.");
 		}
 
 		if (!isInBloodwoodArea() || sapBuckets <= previousSapBuckets)
@@ -470,6 +486,11 @@ public class BloodwoodPlugin extends Plugin
 		int ticksSinceProgressChange
 	)
 	{
+		if (letvekInBucket > 0)
+		{
+			return EngorgedBloodwoodPhase.LETVEK_IN_A_BUCKET;
+		}
+
 		if (draining > 0 && progress < ENGORGED_FULL_PROGRESS)
 		{
 			return EngorgedBloodwoodPhase.DRAINING;

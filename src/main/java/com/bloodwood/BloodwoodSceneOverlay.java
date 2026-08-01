@@ -120,6 +120,11 @@ class BloodwoodSceneOverlay extends Overlay
 
 	private Color getEngorgedTreeColor(EngorgedBloodwoodState state)
 	{
+		if (state.getPhase() == EngorgedBloodwoodPhase.LETVEK_IN_A_BUCKET)
+		{
+			return config.engorgedLetvekColor();
+		}
+
 		if (state.getPhase() == EngorgedBloodwoodPhase.NO_BUCKET)
 		{
 			return config.noBucketColor();
@@ -198,6 +203,8 @@ class BloodwoodSceneOverlay extends Overlay
 	{
 		switch (state.getPhase())
 		{
+			case LETVEK_IN_A_BUCKET:
+				return "Shoo Letvek";
 			case NO_BUCKET:
 				return "No bucket";
 			case BLEEDING:

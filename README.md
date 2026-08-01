@@ -36,6 +36,19 @@ phase is done, and when draining finishes. They use RuneLite's normal
 notification settings, so you can handle sounds, flashing, focus behavior, and
 everything else there.
 
+## Letvek in a bucket
+
+After collecting sap, a letvek can crawl into one of the player's buckets. The
+plugin:
+
+- highlights the `Letvek in a bucket` item in the inventory
+- marks the engorged tree as `Shoo Letvek` until the letvek is removed
+- can send a normal RuneLite notification
+- supports clickbox or outline highlighting with separate outline and fill colors
+
+Clicking the letvek remains the player's action. The plugin does not click the
+item or use sap on it, and the letvek does not replace the sap that was collected.
+
 ## Session Stats
 
 The side panel can show empty buckets, sap buckets, sap collected this session,

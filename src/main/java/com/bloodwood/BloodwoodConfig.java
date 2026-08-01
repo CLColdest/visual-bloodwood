@@ -27,6 +27,14 @@ public interface BloodwoodConfig extends Config
 	)
 	String engorgedBloodwoodTreeSection = "engorgedBloodwoodTreeSection";
 
+	@ConfigSection(
+		position = 40,
+		name = "Letvek in a bucket",
+		description = "Settings for a letvek that crawls into a bucket.",
+		closedByDefault = false
+	)
+	String letvekSection = "letvekSection";
+
 	@ConfigItem(
 		position = 0,
 		keyName = "showSessionStats",
@@ -239,5 +247,80 @@ public interface BloodwoodConfig extends Config
 	default Color engorgedDrainingColor()
 	{
 		return Color.GREEN;
+	}
+
+	@Alpha
+	@ConfigItem(
+		position = 29,
+		keyName = "engorgedLetvekColor",
+		name = "Letvek state color",
+		description = "Configures the color for the engorged Bloodwood tree when a letvek is in a bucket.",
+		section = engorgedBloodwoodTreeSection
+	)
+	default Color engorgedLetvekColor()
+	{
+		return Color.RED;
+	}
+
+	@ConfigItem(
+		position = 41,
+		keyName = "showLetvekHighlight",
+		name = "Highlight letvek",
+		description = "Highlights Letvek in a bucket in the inventory.",
+		section = letvekSection
+	)
+	default boolean showLetvekHighlight()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		position = 42,
+		keyName = "letvekHighlightMode",
+		name = "Highlight mode",
+		description = "Chooses whether to highlight the inventory clickbox or only its outline.",
+		section = letvekSection
+	)
+	default LetvekHighlightMode letvekHighlightMode()
+	{
+		return LetvekHighlightMode.CLICKBOX;
+	}
+
+	@ConfigItem(
+		position = 43,
+		keyName = "letvekNotification",
+		name = "Letvek notification",
+		description = "Notifies when a letvek crawls into one of your buckets.",
+		section = letvekSection
+	)
+	default Notification letvekNotification()
+	{
+		return Notification.ON;
+	}
+
+	@Alpha
+	@ConfigItem(
+		position = 44,
+		keyName = "letvekHighlightOutlineColor",
+		name = "Highlight outline color",
+		description = "Configures the outline color for Letvek in a bucket.",
+		section = letvekSection
+	)
+	default Color letvekHighlightOutlineColor()
+	{
+		return new Color(255, 80, 80);
+	}
+
+	@Alpha
+	@ConfigItem(
+		position = 45,
+		keyName = "letvekHighlightFillColor",
+		name = "Highlight fill color",
+		description = "Configures the fill color for Letvek in a bucket when using the clickbox mode.",
+		section = letvekSection
+	)
+	default Color letvekHighlightFillColor()
+	{
+		return new Color(255, 80, 80, 50);
 	}
 }
